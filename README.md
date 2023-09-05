@@ -1,34 +1,68 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-## Getting Started
+Pour l'instant ce repository illustre le bug [372](https://github.com/betagouv/publicodes/issues/372) de publicodes
 
-First, run the development server:
+Ceci est un projet [Next.js](https://nextjs.org/) "from scratch", avec le strict minimum de fichiers/dépendances pour illustrer ce bug.
+
+Voici les étapes pour recréer ce bug
+
+## Prérequis
+
+Projet créé avec Node v18.11.0 et Yarn 1.22.19
+
+## Comment ce projet a été créé
+
+D'abord, créer le projet puis ajouter les dépendances
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+npx create-next-app publinext --javascript --eslint --no-tailwind --no-src-dir --app --import-alias '@/*'
+cd publinext
+yarn add publicodes@1.0.0-beta.71
+yarn add publicodes-react@1.0.0-beta.71
+yarn add yaml
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ensuite, créez un fichier sous `pages/documentation/[...slug].jsx`
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```js
+import Head from 'next/head';
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import { RulePage } from 'publicodes-react'
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+export default function Documentation() {
+  const { slug } = useRouter().query;
+  return <RulePage
+    documentationPath="/documentation"
+    rulePath={slug.join('/')}
+    language="fr"
+    renderers={{
+      Head,
+      Link: ({ to, children }) => <Link href={to}><a>{children}</a></Link>
+    }}
+  />
+}
+```
 
-## Learn More
+Ensuite, lancez le server en local
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+yarn dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Ouvrir [http://localhost:3000/documentation/aa](http://localhost:3000/documentation/aa)/
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+## Bug
 
-## Deploy on Vercel
+Le bug suivant s'affiche :
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> Server Error
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+> TypeError: import_styled_components.default.div is not a function
+
+> file:///node_modules/publicodes-react/dist/index.cjs (6891:62)
+
+La ligne 6891 de index.cjs est la suivante
+
+`var AccordionContainer = import_styled_components.default.div`
+
+Ce qui signifie que les "styled components" ne sont pas correctement chargés par la dépendance.
