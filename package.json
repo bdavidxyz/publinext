@@ -12,7 +12,10 @@
     "eslint": "8.48.0",
     "eslint-config-next": "13.4.19",
     "next": "13.4.19",
+    "publicodes": "1.0.0-beta.71",
+    "publicodes-react": "1.0.0-beta.71",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "yaml": "^2.3.2"
   }
 }
