@@ -4,10 +4,11 @@ import { RulePage } from 'publicodes-react'
 import engine from '../utils/engine'
 
 export default function CustomRulePage(props) {
+  console.log('props', props);
   return (
     <RulePage
       documentationPath="/documentation"
-      rulePath={"prix"}
+      rulePath={props.slug}
       engine={engine}
       language="fr"
       renderers={{
