@@ -1,9 +1,8 @@
 
-Pour l'instant ce repository illustre le bug [372](https://github.com/betagouv/publicodes/issues/372) de publicodes
 
-Ceci est un projet [Next.js](https://nextjs.org/) "from scratch", avec le strict minimum de fichiers/dépendances pour illustrer ce bug.
+Ceci est un projet [Next.js](https://nextjs.org/) "from scratch", avec le strict minimum de fichiers/dépendances pour illustrer l'intégration d'une documentation publicode dans un projet NextJS.
 
-Voici les étapes pour recréer ce bug
+Voici les étapes
 
 ## Prérequis
 
@@ -16,30 +15,86 @@ D'abord, créer le projet puis ajouter les dépendances
 ```bash
 npx create-next-app publinext --javascript --eslint --no-tailwind --no-src-dir --app --import-alias '@/*'
 cd publinext
-yarn add publicodes@1.0.0-beta.71
-yarn add publicodes-react@1.0.0-beta.71
+yarn add publicodes@1.0.0-beta.72
+yarn add publicodes-react@1.0.0-beta.72
 yarn add yaml
 ```
 
-Ensuite, créez un fichier sous `pages/documentation/[...slug].jsx`
+D'abord créez un fichier `utils/engine.jsx` qui va contenir un moteur de règle basique
+
+```js
+import Engine from 'publicodes'
+import { parse } from 'yaml'
+
+// On définit une liste de règles publicodes
+const rules = `
+prix:
+prix . carottes: 2€/kg
+prix . champignons: 5€/kg
+prix . avocat: 2€/avocat
+
+dépenses primeur:
+  formule:
+    somme:
+      - prix . carottes * 1.5 kg
+      - prix . champignons * 500g
+      - prix . avocat * 3 avocat
+`
+// publicodes ne prend plus en entrée du YAML, vous devez parser vous-même votre code source
+const parsedRules = parse(rules)
+
+// On initialise un moteur en lui donnant le publicodes sous forme d'objet javascript.
+// Ce publicodes va être parsé
+const engine = new Engine(parsedRules)
+
+export default engine;
+```
+
+Puis créez un fichier `components/CustomRulePage.jsx`
 
 ```js
 import Head from 'next/head';
 import Link from 'next/link'
-import { useRouter } from 'next/router'
 import { RulePage } from 'publicodes-react'
+import engine from '../utils/engine'
+
+export default function CustomRulePage(props) {
+  console.log('props', props);
+  return (
+    <RulePage
+      documentationPath="/documentation"
+      rulePath={props.slug}
+      engine={engine}
+      language="fr"
+      renderers={{
+        Head,
+        Link: ({ to, children }) => <Link href={to}>{children}</Link>
+      }}
+    />
+  )
+}
+
+```
+
+
+Ensuite, créez un fichier sous `pages/documentation/[...slug].jsx`
+
+Notez l'import dynamique de Next, car pour l'instant la documentation ne fonctionne pas en rendu serveur.
+
+```js
+import { useRouter } from 'next/router'
+import dynamic from 'next/dynamic'
 
 export default function Documentation() {
-  const { slug } = useRouter().query;
-  return <RulePage
-    documentationPath="/documentation"
-    rulePath={slug.join('/')}
-    language="fr"
-    renderers={{
-      Head,
-      Link: ({ to, children }) => <Link href={to}><a>{children}</a></Link>
-    }}
-  />
+  const router = useRouter()
+  const rootDoc = "prix"
+  const CustomRulePage = dynamic(() => import('../../components/CustomRulePage'), {
+    ssr: false,
+  })
+
+  return <>
+    <CustomRulePage slug={router?.query?.slug?.join("/") || rootDoc} />
+  </>
 }
 ```
 
@@ -49,20 +104,6 @@ Ensuite, lancez le server en local
 yarn dev
 ```
 
-Ouvrir [http://localhost:3000/documentation/aa](http://localhost:3000/documentation/aa)/
+Ouvrir [http://localhost:3000/documentation/prix](http://localhost:3000/documentation/prix)/
 
-## Bug
-
-Le bug suivant s'affiche :
-
-> Server Error
-
-> TypeError: import_styled_components.default.div is not a function
-
-> file:///node_modules/publicodes-react/dist/index.cjs (6891:62)
-
-La ligne 6891 de index.cjs est la suivante
-
-`var AccordionContainer = import_styled_components.default.div`
-
-Ce qui signifie que les "styled components" ne sont pas correctement chargés par la dépendance.
+Vous pouvez naviguer entre les différentes règles dans la documentation qui s'affiche
